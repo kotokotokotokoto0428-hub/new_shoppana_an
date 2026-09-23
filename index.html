@@ -1,0 +1,143 @@
+
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>管理者ダッシュボード</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;500;700&display=swap" rel="stylesheet">
+</head>
+<body class="bg-slate-50 p-4 sm:p-8 font-sans" style="font-family: 'Noto Sans JP', sans-serif;">
+  <div class="max-w-5xl mx-auto space-y-8">
+    
+    <div class="bg-white rounded-2xl shadow-sm border border-slate-100 p-6 sm:p-8">
+      <h2 class="text-xl sm:text-2xl font-bold text-slate-800 mb-6 tracking-tight">店舗の管理 (追加)</h2>
+      <div class="flex flex-col sm:flex-row gap-3">
+        <input type="text" id="newStoreName" class="flex-1 p-3 sm:p-4 border border-slate-200 rounded-xl bg-slate-50 outline-none focus:ring-2 focus:ring-slate-500 transition-shadow text-base" placeholder="新しい店舗名を入力">
+        <button id="addStoreBtn" class="bg-slate-800 text-white font-bold px-8 py-3 sm:py-4 rounded-xl shadow hover:bg-slate-900 transition-all">店舗を追加</button>
+      </div>
+    </div>
+
+    <div class="bg-white rounded-2xl shadow-sm border border-slate-100 p-6 sm:p-8">
+      <h2 class="text-xl sm:text-2xl font-bold text-slate-800 mb-6 tracking-tight flex items-center">
+        <span class="w-3 h-3 bg-sky-500 rounded-full mr-3 animate-pulse"></span> 全店舗ライブ集計
+      </h2>
+      <div class="overflow-hidden rounded-xl border border-slate-200">
+        <table class="w-full text-left border-collapse">
+          <thead>
+            <tr class="bg-slate-50 text-slate-600 text-sm uppercase tracking-wide border-b border-slate-200">
+              <th class="p-4 font-semibold">店舗名</th>
+              <th class="p-4 font-semibold">回答数</th>
+              <th class="p-4 font-semibold">NPSスコア</th>
+            </tr>
+          </thead>
+          <tbody id="tableBody" class="text-slate-800 divide-y divide-slate-100">
+            <!-- 動的追加 -->
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <div class="bg-white rounded-2xl shadow-sm border border-slate-100 p-6 sm:p-8">
+      <h2 class="text-xl sm:text-2xl font-bold text-slate-800 mb-6 tracking-tight">新着の回答コメント一覧</h2>
+      <div id="adminCommentList" class="space-y-4 sm:space-y-5">
+        <!-- 動的追加 -->
+      </div>
+    </div>
+
+  </div>
+
+  <script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-app.js";
+    import { getFirestore, collection, addDoc, onSnapshot } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-firestore.js";
+
+    const firebaseConfig = {
+      apiKey: "AIzaSyDx8Q0of4f2AD-nChSIBmEr36Hn-2rQt-4",
+      authDomain: "shoppana-nps-app-nodelete.firebaseapp.com",
+      projectId: "shoppana-nps-app-nodelete",
+      storageBucket: "shoppana-nps-app-nodelete.firebasestorage.app",
+      messagingSenderId: "24600332490",
+      appId: "1:24600332490:web:5c0a802af1a301d1a7cc33"
+    };
+    const app = initializeApp(firebaseConfig);
+    const db = getFirestore(app);
+
+    const escapeHTML = str => (str || '').replace(/[&<>'"]/g, tag => ({'&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;'}[tag]));
+
+    document.getElementById('addStoreBtn').addEventListener('click', async () => {
+      const name = document.getElementById('newStoreName').value.trim();
+      if (!name) return;
+      await addDoc(collection(db, "stores"), { name: name });
+      document.getElementById('newStoreName').value = '';
+      alert(`${name} を追加しました`);
+    });
+
+    let storesList = [];
+    let surveysList = [];
+
+    const renderDashboard = () => {
+      let tableHtml = '';
+      storesList.forEach(storeName => {
+        const storeSurveys = surveysList.filter(s => s.store === storeName);
+        const count = storeSurveys.length;
+        
+        const promoters = storeSurveys.filter(s => s.nps >= 9).length;
+        const detractors = storeSurveys.filter(s => s.nps <= 6).length;
+        const npsScore = count === 0 ? 0 : Math.round(((promoters / count) - (detractors / count)) * 100);
+        
+        tableHtml += `<tr class="hover:bg-slate-50 transition-colors">
+          <td class="p-4 font-bold text-slate-800">${escapeHTML(storeName)}</td>
+          <td class="p-4 font-medium text-slate-600">${count}件</td>
+          <td class="p-4 font-bold text-indigo-600">${npsScore}</td>
+        </tr>`;
+      });
+      document.getElementById('tableBody').innerHTML = tableHtml || '<tr><td colspan="3" class="p-6 text-center text-slate-500">店舗が登録されていません</td></tr>';
+
+      const sortedSurveys = [...surveysList].sort((a, b) => (b.timestamp?.toMillis() || 0) - (a.timestamp?.toMillis() || 0));
+      let commentHtml = '';
+      sortedSurveys.forEach(data => {
+        const date = data.timestamp ? new Date(data.timestamp.toMillis()).toLocaleString('ja-JP', { month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit' }) : '送信中...';
+        const npsLabel = data.nps >= 9 ? '推奨者' : data.nps >= 7 ? '中立者' : '期待未達者';
+        
+        const bgColor = data.nps >= 9 ? 'bg-pink-50 border-pink-400' : data.nps >= 7 ? 'bg-green-50 border-green-400' : 'bg-sky-50 border-sky-400';
+        const textColor = data.nps >= 9 ? 'text-pink-800' : data.nps >= 7 ? 'text-green-800' : 'text-sky-800';
+        const iconFile = data.nps >= 9 ? 'lunchmap01.webp' : data.nps >= 7 ? 'lunchmap02.webp' : 'lunchmap03.webp';
+        
+        commentHtml += `
+          <div class="p-5 rounded-2xl shadow-sm border-l-4 ${bgColor} transition-all hover:shadow-md">
+            <div class="flex justify-between items-center w-full gap-3 sm:gap-4">
+              <div class="space-y-3 flex-1">
+                <div class="flex flex-col sm:flex-row sm:items-center text-sm text-slate-500 gap-2 font-medium">
+                  <span class="font-bold text-indigo-700 bg-indigo-50 px-2 py-1 rounded inline-block w-max">${escapeHTML(data.store)}</span>
+                  <span>${date} / ${escapeHTML(data.gender)} / ${escapeHTML(data.time)}</span>
+                </div>
+                <div>
+                  <span class="bg-white border border-slate-200 font-bold px-3 py-1.5 rounded-lg text-sm ${textColor} shadow-sm inline-block">NPS: ${data.nps}（${npsLabel}）</span>
+                </div>
+              </div>
+              <div class="w-20 sm:w-24 flex justify-center items-center flex-shrink-0">
+                <img src="${iconFile}" alt="${npsLabel}アイコン" class="w-14 h-14 sm:w-16 sm:h-16 flex-shrink-0 object-contain">
+              </div>
+            </div>
+            <p class="text-slate-800 text-base mt-3 whitespace-pre-wrap leading-relaxed">${escapeHTML(data.reason) || '<span class="text-slate-400 italic">理由の記入なし</span>'}</p>
+          </div>
+        `;
+      });
+      document.getElementById('adminCommentList').innerHTML = commentHtml || '<p class="text-slate-500 text-center py-8">まだ回答がありません</p>';
+    };
+
+    onSnapshot(collection(db, "stores"), (snapshot) => {
+      storesList = [];
+      snapshot.forEach(doc => storesList.push(doc.data().name));
+      renderDashboard();
+    });
+
+    onSnapshot(collection(db, "surveys"), (snapshot) => {
+      surveysList = [];
+      snapshot.forEach(doc => surveysList.push(doc.data()));
+      renderDashboard();
+    });
+  </script>
+</body>
+</html>
