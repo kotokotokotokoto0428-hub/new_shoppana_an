@@ -40,6 +40,22 @@
                 transform: translateY(0);
             }
         }
+        @media print {
+            header, footer, #progress-container, .no-print {
+                display: none !important;
+            }
+            body {
+                background-color: white;
+            }
+            main {
+                max-width: 100% !important;
+                padding: 0 !important;
+            }
+            #app-content {
+                border: none !important;
+                box-shadow: none !important;
+            }
+        }
     </style>
 </head>
 <body class="min-h-screen text-slate-800 flex flex-col justify-between">
@@ -86,7 +102,7 @@
         </div>
 
         <!-- Information / Disclaimer Section -->
-        <div class="mt-10 bg-slate-100 rounded-xl p-5 border border-slate-200 text-xs sm:text-sm text-slate-600 space-y-3">
+        <div class="mt-10 bg-slate-100 rounded-xl p-5 border border-slate-200 text-xs sm:text-sm text-slate-600 space-y-3 no-print">
             <div class="flex items-center text-slate-700 font-bold text-sm sm:text-base border-b border-slate-200 pb-2">
                 <i class="fa-solid fa-circle-info text-blue-600 mr-2 text-base"></i> ご注意・案内事項
             </div>
@@ -98,7 +114,7 @@
         </div>
 
         <!-- Reference Summary Box -->
-        <div class="mt-6 bg-white rounded-xl p-5 border border-slate-200 text-xs sm:text-sm text-slate-600 shadow-sm">
+        <div class="mt-6 bg-white rounded-xl p-5 border border-slate-200 text-xs sm:text-sm text-slate-600 shadow-sm no-print">
             <div class="font-bold text-slate-700 mb-2 flex items-center">
                 <i class="fa-solid fa-list-check text-slate-500 mr-2"></i> 判定結果の見方目安
             </div>
@@ -141,9 +157,11 @@
         let selections = {
             step1: null,
             step2: null,
-            step3: null,
+            step2_purpose: null,
             step3_1: null,
-            step3_2: null
+            step3_2: null,
+            resultType: null,
+            reason: null
         };
         let stepHistory = ['STEP1'];
 
@@ -217,7 +235,7 @@
                     break;
 
                 case 'STEP2':
-                    progressBar.style.width = '50%';
+                    progressBar.style.width = '40%';
                     stepIndicator.textContent = 'STEP 2 / 税法上の非営利型確認';
                     container.innerHTML = `
                         ${renderBackButton()}
@@ -247,13 +265,13 @@
                     `;
                     break;
 
-                case 'STEP3':
-                    progressBar.style.width = '75%';
-                    stepIndicator.textContent = 'STEP 3 / 利用目的の確認';
+                case 'STEP2_PURPOSE':
+                    progressBar.style.width = '70%';
+                    stepIndicator.textContent = 'STEP 2 利用目的確認';
                     container.innerHTML = `
                         ${renderBackButton()}
                         <div class="mb-6">
-                            <span class="inline-block px-3 py-1 bg-blue-100 text-blue-800 font-bold rounded-md text-xs mb-2">STEP 3</span>
+                            <span class="inline-block px-3 py-1 bg-blue-100 text-blue-800 font-bold rounded-md text-xs mb-2">STEP 2 利用目的</span>
                             <h2 class="text-xl sm:text-2xl font-bold text-slate-900">今回の具体的な利用目的に営業・ビジネス行為が含まれますか？</h2>
                             <p class="text-sm text-slate-600 mt-2 bg-slate-50 p-3 rounded-lg border border-slate-200">
                                 <span class="font-semibold text-slate-700">対象例：</span>商品販売、広告宣伝、PR、勧誘、商談、求人、将来の売上につながる行為など
@@ -261,7 +279,7 @@
                         </div>
 
                         <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                            <button onclick="handleStep3('yes')" class="option-card p-6 rounded-xl border-2 border-slate-200 hover:border-blue-600 hover:bg-blue-50/40 text-center group">
+                            <button onclick="handleStep2Purpose('yes')" class="option-card p-6 rounded-xl border-2 border-slate-200 hover:border-blue-600 hover:bg-blue-50/40 text-center group">
                                 <div class="w-12 h-12 rounded-full bg-red-100 text-red-600 flex items-center justify-center font-bold text-xl mx-auto mb-3 group-hover:bg-blue-600 group-hover:text-white transition-colors">
                                     <i class="fa-solid fa-store"></i>
                                 </div>
@@ -269,7 +287,7 @@
                                 <div class="text-xs text-slate-500 mt-1">ビジネス・売上につながる行為あり</div>
                             </button>
 
-                            <button onclick="handleStep3('no')" class="option-card p-6 rounded-xl border-2 border-slate-200 hover:border-blue-600 hover:bg-blue-50/40 text-center group">
+                            <button onclick="handleStep2Purpose('no')" class="option-card p-6 rounded-xl border-2 border-slate-200 hover:border-blue-600 hover:bg-blue-50/40 text-center group">
                                 <div class="w-12 h-12 rounded-full bg-emerald-100 text-emerald-600 flex items-center justify-center font-bold text-xl mx-auto mb-3 group-hover:bg-blue-600 group-hover:text-white transition-colors">
                                     <i class="fa-solid fa-users text-emerald-600 group-hover:text-white"></i>
                                 </div>
@@ -282,11 +300,11 @@
 
                 case 'STEP3_1':
                     progressBar.style.width = '50%';
-                    stepIndicator.textContent = 'STEP 4-1 / 申請主体と内容の確認';
+                    stepIndicator.textContent = 'STEP 3-1 / 申請主体と内容の確認';
                     container.innerHTML = `
                         ${renderBackButton()}
                         <div class="mb-6">
-                            <span class="inline-block px-3 py-1 bg-purple-100 text-purple-800 font-bold rounded-md text-xs mb-2">STEP 4-1</span>
+                            <span class="inline-block px-3 py-1 bg-purple-100 text-purple-800 font-bold rounded-md text-xs mb-2">STEP 3-1</span>
                             <h2 class="text-xl sm:text-2xl font-bold text-slate-900">予約・申請の主体は講師・指導者本人（またはスクール関係者）であり、ビジネス目的の販売やPR、勧誘等が含まれる内容ですか？</h2>
                             <p class="text-sm text-slate-600 mt-2 bg-purple-50 p-3 rounded-lg border border-purple-100">
                                 <span class="font-semibold text-purple-900">例：</span>有料・ビジネス目的の教室、講座、セミナー、レッスン等
@@ -294,7 +312,7 @@
                         </div>
 
                         <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                            <button onclick="handleStep4_1('yes')" class="option-card p-6 rounded-xl border-2 border-slate-200 hover:border-blue-600 hover:bg-blue-50/40 text-center group">
+                            <button onclick="handleStep3_1('yes')" class="option-card p-6 rounded-xl border-2 border-slate-200 hover:border-blue-600 hover:bg-blue-50/40 text-center group">
                                 <div class="w-12 h-12 rounded-full bg-red-100 text-red-600 flex items-center justify-center font-bold text-xl mx-auto mb-3 group-hover:bg-blue-600 group-hover:text-white transition-colors">
                                     <i class="fa-solid fa-chalkboard-user"></i>
                                 </div>
@@ -302,7 +320,7 @@
                                 <div class="text-xs text-slate-500 mt-1">講師主体・ビジネス目的のレッスン等</div>
                             </button>
 
-                            <button onclick="handleStep4_1('no')" class="option-card p-6 rounded-xl border-2 border-slate-200 hover:border-blue-600 hover:bg-blue-50/40 text-center group">
+                            <button onclick="handleStep3_1('no')" class="option-card p-6 rounded-xl border-2 border-slate-200 hover:border-blue-600 hover:bg-blue-50/40 text-center group">
                                 <div class="w-12 h-12 rounded-full bg-purple-100 text-purple-600 flex items-center justify-center font-bold text-xl mx-auto mb-3 group-hover:bg-blue-600 group-hover:text-white transition-colors">
                                     <i class="fa-solid fa-people-group"></i>
                                 </div>
@@ -314,7 +332,7 @@
                     break;
 
                 case 'STEP3_2':
-                    progressBar.style.width = '75%';
+                    progressBar.style.width = '80%';
                     stepIndicator.textContent = 'STEP 3-2 / 領収書等の宛名発行確認';
                     container.innerHTML = `
                         ${renderBackButton()}
@@ -352,7 +370,6 @@
             }
         }
 
-        // Helper to render 'Back' button
         function renderBackButton() {
             return `
                 <button onclick="goBack()" class="inline-flex items-center text-xs font-semibold text-slate-500 hover:text-slate-800 mb-4 transition-colors">
@@ -383,7 +400,7 @@
         function handleStep2(choice) {
             selections.step2 = choice;
             if (choice === 'yes') {
-                currentStep = 'STEP3';
+                currentStep = 'STEP2_PURPOSE';
             } else {
                 selections.resultType = 'COMMERCIAL';
                 selections.reason = '一般社団・財団法人で、税法上の非営利型に該当することが確認できないため';
@@ -393,11 +410,11 @@
             renderStep();
         }
 
-        function handleStep3(choice) {
-            selections.step3 = choice;
+        function handleStep2Purpose(choice) {
+            selections.step2_purpose = choice;
             if (choice === 'yes') {
                 selections.resultType = 'COMMERCIAL';
-                selections.reason = '一般社団・財団法人（非営利型）だが、今回の利用目的に営業・ビジネス行為が含まれるため';
+                selections.reason = '一般社団・財団法人（非営利型）ですが、今回の利用目的に営業・ビジネス行為が含まれるため';
             } else {
                 selections.resultType = 'NON_COMMERCIAL';
                 selections.reason = '一般社団・財団法人（非営利型）であり、利用目的に営業・ビジネス行為が含まれないため';
@@ -424,7 +441,7 @@
             selections.step3_2 = choice;
             if (choice === 'yes') {
                 selections.resultType = 'NON_COMMERCIAL';
-                selections.reason = '任意団体・市民サークル・個人による利用であり、経費精算用の領収書発行を必要としない利用のため';
+                selections.reason = '任意団体・市民サークル・個人による利用であり、経費精算用の宛名付き領収書発行を必要としない利用のため';
             } else {
                 selections.resultType = 'COMMERCIAL';
                 selections.reason = '任意団体・サークル・個人での利用ですが、事業用途・経費精算目的等の宛名付き領収書発行が必要なため';
@@ -447,7 +464,7 @@
             selections = {
                 step1: null,
                 step2: null,
-                step3: null,
+                step2_purpose: null,
                 step3_1: null,
                 step3_2: null,
                 resultType: null,
@@ -462,26 +479,26 @@
 
             // Generate selection path text for display
             let pathText = [];
-            if (selections.step1 === 'A') pathText.push('STEP1: 営利企業（A）を選択');
-            if (selections.step1 === 'B') pathText.push('STEP1: 個人事業主・士業事務所（B）を選択');
+            if (selections.step1 === 'A') pathText.push('STEP 1: 営利企業（A）を選択');
+            if (selections.step1 === 'B') pathText.push('STEP 1: 個人事業主・士業事務所（B）を選択');
             if (selections.step1 === 'C') {
-                pathText.push('STEP1: 一般社団法人・一般財団法人（C）を選択');
+                pathText.push('STEP 1: 一般社団法人・一般財団法人（C）を選択');
                 if (selections.step2 === 'yes') {
-                    pathText.push('STEP2: 税法上の非営利型（はい）');
-                    if (selections.step3 === 'yes') pathText.push('STEP3: 営業・ビジネス行為が含まれる（はい）');
-                    if (selections.step3 === 'no') pathText.push('STEP3: 営業・ビジネス行為が含まれない（いいえ）');
+                    pathText.push('STEP 2: 税法上の非営利型（はい）');
+                    if (selections.step2_purpose === 'yes') pathText.push('STEP 2 利用目的: 営業・ビジネス行為が含まれる（はい）');
+                    if (selections.step2_purpose === 'no') pathText.push('STEP 2 利用目的: 営業・ビジネス行為が含まれない（いいえ）');
                 } else if (selections.step2 === 'no') {
-                    pathText.push('STEP2: 税法上の非営利型でない / 分からない（いいえ）');
+                    pathText.push('STEP 2: 税法上の非営利型でない / 分からない（いいえ）');
                 }
             }
-            if (selections.step1 === 'D') pathText.push('STEP1: その他の非営利法人・公的機関（D）を選択');
+            if (selections.step1 === 'D') pathText.push('STEP 1: その他の非営利法人・公的機関（D）を選択');
             if (selections.step1 === 'E') {
-                pathText.push('STEP1: 任意団体・市民サークル・一般個人（E）を選択');
-                if (selections.step3_1 === 'yes') pathText.push('STEP3-1: 講師主体・ビジネス目的のレッスン等（はい）');
+                pathText.push('STEP 1: 任意団体・市民サークル・一般個人（E）を選択');
+                if (selections.step3_1 === 'yes') pathText.push('STEP 3-1: 講師主体・ビジネス目的のレッスン等（はい）');
                 if (selections.step3_1 === 'no') {
-                    pathText.push('STEP3-1: 講師主体・ビジネス目的でない（いいえ）');
-                    if (selections.step3_2 === 'yes') pathText.push('STEP3-2: 利用明細書（レシート）発行でよい（はい）');
-                    if (selections.step3_2 === 'no') pathText.push('STEP3-2: 宛名付き領収書が必要（いいえ）');
+                    pathText.push('STEP 3-1: 講師主体・ビジネス目的でない（いいえ）');
+                    if (selections.step3_2 === 'yes') pathText.push('STEP 3-2: 利用明細書（レシート）発行でよい（はい）');
+                    if (selections.step3_2 === 'no') pathText.push('STEP 3-2: 宛名付き領収書が必要（いいえ）');
                 }
             }
 
@@ -531,7 +548,7 @@
                     </div>
 
                     <!-- Action Buttons -->
-                    <div class="flex flex-col sm:flex-row gap-3 justify-center pt-2">
+                    <div class="flex flex-col sm:flex-row gap-3 justify-center pt-2 no-print">
                         <button onclick="resetForm()" class="px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-xl transition-all shadow-md hover:shadow-lg flex items-center justify-center gap-2">
                             <i class="fa-solid fa-rotate-left"></i> もう一度最初から判定する
                         </button>
