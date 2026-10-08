@@ -1,143 +1,552 @@
-
 <!DOCTYPE html>
 <html lang="ja">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>管理者ダッシュボード</title>
-  <script src="https://cdn.tailwindcss.com"></script>
-  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;500;700&display=swap" rel="stylesheet">
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>都城市中心市街地中核施設 | 団体区分・料金区分 自動判定システム</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Font Awesome Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Google Fonts (Inter + Noto Sans JP) -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Noto+Sans+JP:wght@400;500;700;800&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Noto Sans JP', 'Inter', sans-serif;
+            background-color: #f8fafc;
+        }
+        .gradient-header {
+            background: linear-gradient(135deg, #1e3a8a 0%, #1e40af 50%, #1d4ed8 100%);
+        }
+        .option-card {
+            transition: all 0.2s ease-in-out;
+        }
+        .option-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+        }
+        .animate-fade-in {
+            animation: fadeIn 0.3s ease-out forwards;
+        }
+        @keyframes fadeIn {
+            from {
+                opacity: 0;
+                transform: translateY(10px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+    </style>
 </head>
-<body class="bg-slate-50 p-4 sm:p-8 font-sans" style="font-family: 'Noto Sans JP', sans-serif;">
-  <div class="max-w-5xl mx-auto space-y-8">
-    
-    <div class="bg-white rounded-2xl shadow-sm border border-slate-100 p-6 sm:p-8">
-      <h2 class="text-xl sm:text-2xl font-bold text-slate-800 mb-6 tracking-tight">店舗の管理 (追加)</h2>
-      <div class="flex flex-col sm:flex-row gap-3">
-        <input type="text" id="newStoreName" class="flex-1 p-3 sm:p-4 border border-slate-200 rounded-xl bg-slate-50 outline-none focus:ring-2 focus:ring-slate-500 transition-shadow text-base" placeholder="新しい店舗名を入力">
-        <button id="addStoreBtn" class="bg-slate-800 text-white font-bold px-8 py-3 sm:py-4 rounded-xl shadow hover:bg-slate-900 transition-all">店舗を追加</button>
-      </div>
-    </div>
+<body class="min-h-screen text-slate-800 flex flex-col justify-between">
 
-    <div class="bg-white rounded-2xl shadow-sm border border-slate-100 p-6 sm:p-8">
-      <h2 class="text-xl sm:text-2xl font-bold text-slate-800 mb-6 tracking-tight flex items-center">
-        <span class="w-3 h-3 bg-sky-500 rounded-full mr-3 animate-pulse"></span> 全店舗ライブ集計
-      </h2>
-      <div class="overflow-hidden rounded-xl border border-slate-200">
-        <table class="w-full text-left border-collapse">
-          <thead>
-            <tr class="bg-slate-50 text-slate-600 text-sm uppercase tracking-wide border-b border-slate-200">
-              <th class="p-4 font-semibold">店舗名</th>
-              <th class="p-4 font-semibold">回答数</th>
-              <th class="p-4 font-semibold">NPSスコア</th>
-            </tr>
-          </thead>
-          <tbody id="tableBody" class="text-slate-800 divide-y divide-slate-100">
-            <!-- 動的追加 -->
-          </tbody>
-        </table>
-      </div>
-    </div>
-
-    <div class="bg-white rounded-2xl shadow-sm border border-slate-100 p-6 sm:p-8">
-      <h2 class="text-xl sm:text-2xl font-bold text-slate-800 mb-6 tracking-tight">新着の回答コメント一覧</h2>
-      <div id="adminCommentList" class="space-y-4 sm:space-y-5">
-        <!-- 動的追加 -->
-      </div>
-    </div>
-
-  </div>
-
-  <script type="module">
-    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-app.js";
-    import { getFirestore, collection, addDoc, onSnapshot } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-firestore.js";
-
-    const firebaseConfig = {
-      apiKey: "AIzaSyDx8Q0of4f2AD-nChSIBmEr36Hn-2rQt-4",
-      authDomain: "shoppana-nps-app-nodelete.firebaseapp.com",
-      projectId: "shoppana-nps-app-nodelete",
-      storageBucket: "shoppana-nps-app-nodelete.firebasestorage.app",
-      messagingSenderId: "24600332490",
-      appId: "1:24600332490:web:5c0a802af1a301d1a7cc33"
-    };
-    const app = initializeApp(firebaseConfig);
-    const db = getFirestore(app);
-
-    const escapeHTML = str => (str || '').replace(/[&<>'"]/g, tag => ({'&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;'}[tag]));
-
-    document.getElementById('addStoreBtn').addEventListener('click', async () => {
-      const name = document.getElementById('newStoreName').value.trim();
-      if (!name) return;
-      await addDoc(collection(db, "stores"), { name: name });
-      document.getElementById('newStoreName').value = '';
-      alert(`${name} を追加しました`);
-    });
-
-    let storesList = [];
-    let surveysList = [];
-
-    const renderDashboard = () => {
-      let tableHtml = '';
-      storesList.forEach(storeName => {
-        const storeSurveys = surveysList.filter(s => s.store === storeName);
-        const count = storeSurveys.length;
-        
-        const promoters = storeSurveys.filter(s => s.nps >= 9).length;
-        const detractors = storeSurveys.filter(s => s.nps <= 6).length;
-        const npsScore = count === 0 ? 0 : Math.round(((promoters / count) - (detractors / count)) * 100);
-        
-        tableHtml += `<tr class="hover:bg-slate-50 transition-colors">
-          <td class="p-4 font-bold text-slate-800">${escapeHTML(storeName)}</td>
-          <td class="p-4 font-medium text-slate-600">${count}件</td>
-          <td class="p-4 font-bold text-indigo-600">${npsScore}</td>
-        </tr>`;
-      });
-      document.getElementById('tableBody').innerHTML = tableHtml || '<tr><td colspan="3" class="p-6 text-center text-slate-500">店舗が登録されていません</td></tr>';
-
-      const sortedSurveys = [...surveysList].sort((a, b) => (b.timestamp?.toMillis() || 0) - (a.timestamp?.toMillis() || 0));
-      let commentHtml = '';
-      sortedSurveys.forEach(data => {
-        const date = data.timestamp ? new Date(data.timestamp.toMillis()).toLocaleString('ja-JP', { month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit' }) : '送信中...';
-        const npsLabel = data.nps >= 9 ? '推奨者' : data.nps >= 7 ? '中立者' : '期待未達者';
-        
-        const bgColor = data.nps >= 9 ? 'bg-pink-50 border-pink-400' : data.nps >= 7 ? 'bg-green-50 border-green-400' : 'bg-sky-50 border-sky-400';
-        const textColor = data.nps >= 9 ? 'text-pink-800' : data.nps >= 7 ? 'text-green-800' : 'text-sky-800';
-        const iconFile = data.nps >= 9 ? 'lunchmap01.webp' : data.nps >= 7 ? 'lunchmap02.webp' : 'lunchmap03.webp';
-        
-        commentHtml += `
-          <div class="p-5 rounded-2xl shadow-sm border-l-4 ${bgColor} transition-all hover:shadow-md">
-            <div class="flex justify-between items-center w-full gap-3 sm:gap-4">
-              <div class="space-y-3 flex-1">
-                <div class="flex flex-col sm:flex-row sm:items-center text-sm text-slate-500 gap-2 font-medium">
-                  <span class="font-bold text-indigo-700 bg-indigo-50 px-2 py-1 rounded inline-block w-max">${escapeHTML(data.store)}</span>
-                  <span>${date} / ${escapeHTML(data.gender)} / ${escapeHTML(data.time)}</span>
-                </div>
-                <div>
-                  <span class="bg-white border border-slate-200 font-bold px-3 py-1.5 rounded-lg text-sm ${textColor} shadow-sm inline-block">NPS: ${data.nps}（${npsLabel}）</span>
-                </div>
-              </div>
-              <div class="w-20 sm:w-24 flex justify-center items-center flex-shrink-0">
-                <img src="${iconFile}" alt="${npsLabel}アイコン" class="w-14 h-14 sm:w-16 sm:h-16 flex-shrink-0 object-contain">
-              </div>
+    <!-- Header -->
+    <header class="gradient-header text-white shadow-md">
+        <div class="max-w-4xl mx-auto px-4 py-6 sm:px-6">
+            <div class="flex items-center space-x-3 mb-1">
+                <span class="bg-blue-500/30 text-blue-100 text-xs px-2.5 py-1 rounded-full font-medium tracking-wide border border-blue-400/30">
+                    <i class="fa-solid fa-building-columns mr-1"></i> 都城市公式
+                </span>
+                <span class="text-xs text-blue-200">中心市街地中核施設</span>
             </div>
-            <p class="text-slate-800 text-base mt-3 whitespace-pre-wrap leading-relaxed">${escapeHTML(data.reason) || '<span class="text-slate-400 italic">理由の記入なし</span>'}</p>
-          </div>
-        `;
-      });
-      document.getElementById('adminCommentList').innerHTML = commentHtml || '<p class="text-slate-500 text-center py-8">まだ回答がありません</p>';
-    };
+            <h1 class="text-2xl sm:text-3xl font-extrabold tracking-tight">
+                団体区分・料金区分 <span class="text-yellow-300">自動判定システム</span>
+            </h1>
+            <p class="mt-2 text-sm sm:text-base text-blue-100 opacity-90">
+                質問に答えるだけで、施設利用時の「営利目的等（営利料金）」または「非営利目的等以外（非営利料金）」を自動判定します。
+            </p>
+        </div>
+    </header>
 
-    onSnapshot(collection(db, "stores"), (snapshot) => {
-      storesList = [];
-      snapshot.forEach(doc => storesList.push(doc.data().name));
-      renderDashboard();
-    });
+    <!-- Main Content Container -->
+    <main class="max-w-4xl mx-auto px-4 py-8 sm:px-6 flex-grow w-full">
 
-    onSnapshot(collection(db, "surveys"), (snapshot) => {
-      surveysList = [];
-      snapshot.forEach(doc => surveysList.push(doc.data()));
-      renderDashboard();
-    });
-  </script>
+        <!-- Progress Bar & Stepper Title -->
+        <div id="progress-container" class="mb-8">
+            <div class="flex justify-between items-center mb-2">
+                <span id="step-indicator" class="text-xs font-semibold text-blue-800 uppercase tracking-wider bg-blue-100 px-3 py-1 rounded-full">
+                    STEP 1 / 判定進行中
+                </span>
+                <button id="reset-top-btn" onclick="resetForm()" class="text-xs text-slate-500 hover:text-blue-700 underline hidden flex items-center gap-1">
+                    <i class="fa-solid fa-rotate-left"></i> 最初からやり直す
+                </button>
+            </div>
+            <div class="w-full bg-slate-200 h-2.5 rounded-full overflow-hidden">
+                <div id="progress-bar" class="bg-blue-600 h-2.5 rounded-full transition-all duration-500 ease-out" style="width: 20%"></div>
+            </div>
+        </div>
+
+        <!-- Dynamic Form / Result Container -->
+        <div id="app-content" class="bg-white rounded-2xl shadow-sm border border-slate-200/80 p-6 sm:p-8">
+            <!-- Content will be injected dynamically via JavaScript -->
+        </div>
+
+        <!-- Information / Disclaimer Section -->
+        <div class="mt-10 bg-slate-100 rounded-xl p-5 border border-slate-200 text-xs sm:text-sm text-slate-600 space-y-3">
+            <div class="flex items-center text-slate-700 font-bold text-sm sm:text-base border-b border-slate-200 pb-2">
+                <i class="fa-solid fa-circle-info text-blue-600 mr-2 text-base"></i> ご注意・案内事項
+            </div>
+            <ul class="list-disc list-inside space-y-1.5 leading-relaxed">
+                <li>本ツールは、都城市中心市街地中核施設の利用における団体区分・料金区分の判定を行うものです。</li>
+                <li>最終的な判定は、申請内容の回答内容に基づき自動で行われます。</li>
+                <li>申請内容・目的に応じて、関係書類の提出をお願いする場合があります。</li>
+            </ul>
+        </div>
+
+        <!-- Reference Summary Box -->
+        <div class="mt-6 bg-white rounded-xl p-5 border border-slate-200 text-xs sm:text-sm text-slate-600 shadow-sm">
+            <div class="font-bold text-slate-700 mb-2 flex items-center">
+                <i class="fa-solid fa-list-check text-slate-500 mr-2"></i> 判定結果の見方目安
+            </div>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mt-2">
+                <div class="p-3 bg-red-50 border border-red-200 rounded-lg">
+                    <div class="font-bold text-red-700 mb-1 flex items-center">
+                        <i class="fa-solid fa-building-flag mr-1.5"></i> 営利判定（営利目的等 / 営利料金）
+                    </div>
+                    <ul class="list-disc list-inside text-red-800 space-y-0.5 text-xs">
+                        <li>営利企業・個人事業主</li>
+                        <li>販売・PR・勧誘等の営業行為</li>
+                        <li>有料の講座・レッスン等（事業用途）</li>
+                    </ul>
+                </div>
+                <div class="p-3 bg-emerald-50 border border-emerald-200 rounded-lg">
+                    <div class="font-bold text-emerald-700 mb-1 flex items-center">
+                        <i class="fa-solid fa-heart-pulse mr-1.5"></i> 非営利判定（営利目的等以外 / 非営利料金）
+                    </div>
+                    <ul class="list-disc list-inside text-emerald-800 space-y-0.5 text-xs">
+                        <li>非営利法人（NPO、社会福祉法人等）</li>
+                        <li>営業・ビジネス行為がない利用</li>
+                        <li>市民活動・ボランティア活動 等</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+
+    </main>
+
+    <!-- Footer -->
+    <footer class="bg-slate-800 text-slate-400 py-6 text-center text-xs mt-12 border-t border-slate-700">
+        <div class="max-w-4xl mx-auto px-4">
+            <p>© 都城市中心市街地中核施設 | 団体区分・料金区分 自動判定システム</p>
+        </div>
+    </footer>
+
+    <script>
+        // State variables to track navigation and user selections
+        let currentStep = 'STEP1';
+        let selections = {
+            step1: null,
+            step2: null,
+            step3: null,
+            step4_1: null,
+            step4_2: null
+        };
+        let stepHistory = ['STEP1'];
+
+        function renderStep() {
+            const container = document.getElementById('app-content');
+            const resetBtn = document.getElementById('reset-top-btn');
+            const progressBar = document.getElementById('progress-bar');
+            const stepIndicator = document.getElementById('step-indicator');
+
+            // Show reset button if passed step 1
+            if (stepHistory.length > 1) {
+                resetBtn.classList.remove('hidden');
+            } else {
+                resetBtn.classList.add('hidden');
+            }
+
+            container.className = 'bg-white rounded-2xl shadow-sm border border-slate-200/80 p-6 sm:p-8 animate-fade-in';
+
+            switch (currentStep) {
+                case 'STEP1':
+                    progressBar.style.width = '20%';
+                    stepIndicator.textContent = 'STEP 1 / 利用団体の区分を選択';
+                    container.innerHTML = `
+                        <div class="mb-6">
+                            <span class="inline-block px-3 py-1 bg-blue-100 text-blue-800 font-bold rounded-md text-xs mb-2">STEP 1</span>
+                            <h2 class="text-xl sm:text-2xl font-bold text-slate-900">利用団体の区分・格（主体）はどれに該当しますか？</h2>
+                            <p class="text-sm text-slate-500 mt-1">該当する項目を1つ選択してください。</p>
+                        </div>
+                        <div class="grid grid-cols-1 gap-3.5">
+                            <button onclick="handleStep1('A')" class="option-card text-left p-4 sm:p-5 rounded-xl border-2 border-slate-200 hover:border-blue-600 hover:bg-blue-50/40 flex items-start space-x-4 group">
+                                <div class="w-8 h-8 rounded-full bg-red-100 text-red-600 flex items-center justify-center font-bold text-base flex-shrink-0 group-hover:bg-blue-600 group-hover:text-white transition-colors">A</div>
+                                <div>
+                                    <div class="font-bold text-base text-slate-800 group-hover:text-blue-900">営利企業</div>
+                                    <div class="text-xs sm:text-sm text-slate-500 mt-0.5">株式会社、合同会社、有限会社 等</div>
+                                </div>
+                            </button>
+
+                            <button onclick="handleStep1('B')" class="option-card text-left p-4 sm:p-5 rounded-xl border-2 border-slate-200 hover:border-blue-600 hover:bg-blue-50/40 flex items-start space-x-4 group">
+                                <div class="w-8 h-8 rounded-full bg-red-100 text-red-600 flex items-center justify-center font-bold text-base flex-shrink-0 group-hover:bg-blue-600 group-hover:text-white transition-colors">B</div>
+                                <div>
+                                    <div class="font-bold text-base text-slate-800 group-hover:text-blue-900">個人事業主・士業事務所</div>
+                                    <div class="text-xs sm:text-sm text-slate-500 mt-0.5">確定申告を行う活動を含む</div>
+                                </div>
+                            </button>
+
+                            <button onclick="handleStep1('C')" class="option-card text-left p-4 sm:p-5 rounded-xl border-2 border-slate-200 hover:border-blue-600 hover:bg-blue-50/40 flex items-start space-x-4 group">
+                                <div class="w-8 h-8 rounded-full bg-blue-100 text-blue-600 flex items-center justify-center font-bold text-base flex-shrink-0 group-hover:bg-blue-600 group-hover:text-white transition-colors">C</div>
+                                <div>
+                                    <div class="font-bold text-base text-slate-800 group-hover:text-blue-900">一般社団法人・一般財団法人</div>
+                                    <div class="text-xs sm:text-sm text-slate-500 mt-0.5">非営利型確認フローへ進みます</div>
+                                </div>
+                            </button>
+
+                            <button onclick="handleStep1('D')" class="option-card text-left p-4 sm:p-5 rounded-xl border-2 border-slate-200 hover:border-blue-600 hover:bg-blue-50/40 flex items-start space-x-4 group">
+                                <div class="w-8 h-8 rounded-full bg-emerald-100 text-emerald-600 flex items-center justify-center font-bold text-base flex-shrink-0 group-hover:bg-blue-600 group-hover:text-white transition-colors">D</div>
+                                <div>
+                                    <div class="font-bold text-base text-slate-800 group-hover:text-blue-900">その他の非営利法人・公的機関</div>
+                                    <div class="text-xs sm:text-sm text-slate-500 mt-0.5">NPO、社会福祉法人、学校法人、宗教法人、認可地縁団体、商工会議所、農協、労働組合、国・地方自治体 等</div>
+                                </div>
+                            </button>
+
+                            <button onclick="handleStep1('E')" class="option-card text-left p-4 sm:p-5 rounded-xl border-2 border-slate-200 hover:border-blue-600 hover:bg-blue-50/40 flex items-start space-x-4 group">
+                                <div class="w-8 h-8 rounded-full bg-purple-100 text-purple-600 flex items-center justify-center font-bold text-base flex-shrink-0 group-hover:bg-blue-600 group-hover:text-white transition-colors">E</div>
+                                <div>
+                                    <div class="font-bold text-base text-slate-800 group-hover:text-blue-900">任意団体・市民サークル・一般個人</div>
+                                    <div class="text-xs sm:text-sm text-slate-500 mt-0.5">確定申告を要しない市民・ボランティア活動等</div>
+                                </div>
+                            </button>
+                        </div>
+                    `;
+                    break;
+
+                case 'STEP2':
+                    progressBar.style.width = '50%';
+                    stepIndicator.textContent = 'STEP 2 / 税法上の非営利型確認';
+                    container.innerHTML = `
+                        ${renderBackButton()}
+                        <div class="mb-6">
+                            <span class="inline-block px-3 py-1 bg-blue-100 text-blue-800 font-bold rounded-md text-xs mb-2">STEP 2（一般社団・財団法人）</span>
+                            <h2 class="text-xl sm:text-2xl font-bold text-slate-900">税法上の非営利型に該当することを定款等で確認できますか？</h2>
+                            <p class="text-sm text-slate-500 mt-1">一般社団法人・一般財団法人の場合のみ確認が必要となります。</p>
+                        </div>
+
+                        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                            <button onclick="handleStep2('yes')" class="option-card p-6 rounded-xl border-2 border-slate-200 hover:border-blue-600 hover:bg-blue-50/40 text-center group">
+                                <div class="w-12 h-12 rounded-full bg-blue-100 text-blue-600 flex items-center justify-center font-bold text-xl mx-auto mb-3 group-hover:bg-blue-600 group-hover:text-white transition-colors">
+                                    <i class="fa-solid fa-check"></i>
+                                </div>
+                                <div class="font-bold text-lg text-slate-800 group-hover:text-blue-900">はい</div>
+                                <div class="text-xs text-slate-500 mt-1">定款等で明確に確認できる</div>
+                            </button>
+
+                            <button onclick="handleStep2('no')" class="option-card p-6 rounded-xl border-2 border-slate-200 hover:border-blue-600 hover:bg-blue-50/40 text-center group">
+                                <div class="w-12 h-12 rounded-full bg-red-100 text-red-600 flex items-center justify-center font-bold text-xl mx-auto mb-3 group-hover:bg-blue-600 group-hover:text-white transition-colors">
+                                    <i class="fa-solid fa-xmark"></i>
+                                </div>
+                                <div class="font-bold text-lg text-slate-800 group-hover:text-blue-900">いいえ・分からない</div>
+                                <div class="text-xs text-slate-500 mt-1">該当しない、または不明な場合</div>
+                            </button>
+                        </div>
+                    `;
+                    break;
+
+                case 'STEP3':
+                    progressBar.style.width = '75%';
+                    stepIndicator.textContent = 'STEP 3 / 利用目的の確認';
+                    container.innerHTML = `
+                        ${renderBackButton()}
+                        <div class="mb-6">
+                            <span class="inline-block px-3 py-1 bg-blue-100 text-blue-800 font-bold rounded-md text-xs mb-2">STEP 3</span>
+                            <h2 class="text-xl sm:text-2xl font-bold text-slate-900">今回の具体的な利用目的に営業・ビジネス行為が含まれますか？</h2>
+                            <p class="text-sm text-slate-600 mt-2 bg-slate-50 p-3 rounded-lg border border-slate-200">
+                                <span class="font-semibold text-slate-700">対象例：</span>商品販売、広告宣伝、PR、勧誘、商談、求人、将来の売上につながる行為など
+                            </p>
+                        </div>
+
+                        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                            <button onclick="handleStep3('yes')" class="option-card p-6 rounded-xl border-2 border-slate-200 hover:border-blue-600 hover:bg-blue-50/40 text-center group">
+                                <div class="w-12 h-12 rounded-full bg-red-100 text-red-600 flex items-center justify-center font-bold text-xl mx-auto mb-3 group-hover:bg-blue-600 group-hover:text-white transition-colors">
+                                    <i class="fa-solid fa-store"></i>
+                                </div>
+                                <div class="font-bold text-lg text-slate-800 group-hover:text-blue-900">はい（含まれる）</div>
+                                <div class="text-xs text-slate-500 mt-1">ビジネス・売上につながる行為あり</div>
+                            </button>
+
+                            <button onclick="handleStep3('no')" class="option-card p-6 rounded-xl border-2 border-slate-200 hover:border-blue-600 hover:bg-blue-50/40 text-center group">
+                                <div class="w-12 h-12 rounded-full bg-emerald-100 text-emerald-600 flex items-center justify-center font-bold text-xl mx-auto mb-3 group-hover:bg-blue-600 group-hover:text-white transition-colors">
+                                    <i class="fa-solid fa-users text-emerald-600 group-hover:text-white"></i>
+                                </div>
+                                <div class="font-bold text-lg text-slate-800 group-hover:text-blue-900">いいえ（含まれない）</div>
+                                <div class="text-xs text-slate-500 mt-1">営利を目的としない純粋な利用</div>
+                            </button>
+                        </div>
+                    `;
+                    break;
+
+                case 'STEP4_1':
+                    progressBar.style.width = '50%';
+                    stepIndicator.textContent = 'STEP 4-1 / 申請主体と内容の確認';
+                    container.innerHTML = `
+                        ${renderBackButton()}
+                        <div class="mb-6">
+                            <span class="inline-block px-3 py-1 bg-purple-100 text-purple-800 font-bold rounded-md text-xs mb-2">STEP 4-1</span>
+                            <h2 class="text-xl sm:text-2xl font-bold text-slate-900">予約・申請の主体は講師・指導者本人（またはスクール関係者）であり、ビジネス目的の販売やPR、勧誘等が含まれる内容ですか？</h2>
+                            <p class="text-sm text-slate-600 mt-2 bg-purple-50 p-3 rounded-lg border border-purple-100">
+                                <span class="font-semibold text-purple-900">例：</span>有料・ビジネス目的の教室、講座、セミナー、レッスン等
+                            </p>
+                        </div>
+
+                        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                            <button onclick="handleStep4_1('yes')" class="option-card p-6 rounded-xl border-2 border-slate-200 hover:border-blue-600 hover:bg-blue-50/40 text-center group">
+                                <div class="w-12 h-12 rounded-full bg-red-100 text-red-600 flex items-center justify-center font-bold text-xl mx-auto mb-3 group-hover:bg-blue-600 group-hover:text-white transition-colors">
+                                    <i class="fa-solid fa-chalkboard-user"></i>
+                                </div>
+                                <div class="font-bold text-lg text-slate-800 group-hover:text-blue-900">はい</div>
+                                <div class="text-xs text-slate-500 mt-1">講師主体・ビジネス目的のレッスン等</div>
+                            </button>
+
+                            <button onclick="handleStep4_1('no')" class="option-card p-6 rounded-xl border-2 border-slate-200 hover:border-blue-600 hover:bg-blue-50/40 text-center group">
+                                <div class="w-12 h-12 rounded-full bg-purple-100 text-purple-600 flex items-center justify-center font-bold text-xl mx-auto mb-3 group-hover:bg-blue-600 group-hover:text-white transition-colors">
+                                    <i class="fa-solid fa-people-group"></i>
+                                </div>
+                                <div class="font-bold text-lg text-slate-800 group-hover:text-blue-900">いいえ</div>
+                                <div class="text-xs text-slate-500 mt-1">自主的なサークル活動や学習会 等</div>
+                            </button>
+                        </div>
+                    `;
+                    break;
+
+                case 'STEP4_2':
+                    progressBar.style.width = '75%';
+                    stepIndicator.textContent = 'STEP 4-2 / 領収書等の宛名発行確認';
+                    container.innerHTML = `
+                        ${renderBackButton()}
+                        <div class="mb-6">
+                            <span class="inline-block px-3 py-1 bg-purple-100 text-purple-800 font-bold rounded-md text-xs mb-2">STEP 4-2</span>
+                            <h2 class="text-xl sm:text-2xl font-bold text-slate-900">宛名付き「領収書」（経費精算・事業用途）ではなく、「利用明細書（レシート）」（記録・割り勘用途）の発行でよろしいですか？</h2>
+                            <p class="text-sm text-slate-500 mt-1">領収書の用途による確認となります。</p>
+                        </div>
+
+                        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                            <button onclick="handleStep4_2('yes')" class="option-card p-6 rounded-xl border-2 border-slate-200 hover:border-blue-600 hover:bg-blue-50/40 text-center group">
+                                <div class="w-12 h-12 rounded-full bg-emerald-100 text-emerald-600 flex items-center justify-center font-bold text-xl mx-auto mb-3 group-hover:bg-blue-600 group-hover:text-white transition-colors">
+                                    <i class="fa-solid fa-receipt"></i>
+                                </div>
+                                <div class="font-bold text-lg text-slate-800 group-hover:text-blue-900">はい（レシートでよい）</div>
+                                <div class="text-xs text-slate-500 mt-1">記録・参加者間での割り勘用途など</div>
+                            </button>
+
+                            <button onclick="handleStep4_2('no')" class="option-card p-6 rounded-xl border-2 border-slate-200 hover:border-blue-600 hover:bg-blue-50/40 text-center group">
+                                <div class="w-12 h-12 rounded-full bg-red-100 text-red-600 flex items-center justify-center font-bold text-xl mx-auto mb-3 group-hover:bg-blue-600 group-hover:text-white transition-colors">
+                                    <i class="fa-solid fa-file-invoice-dollar"></i>
+                                </div>
+                                <div class="font-bold text-lg text-slate-800 group-hover:text-blue-900">いいえ（宛名付き領収書が必要）</div>
+                                <div class="text-xs text-slate-500 mt-1">事業用途・経費精算用などの場合</div>
+                            </button>
+                        </div>
+                    `;
+                    break;
+
+                case 'RESULT':
+                    progressBar.style.width = '100%';
+                    stepIndicator.textContent = '判定完了';
+                    renderResult(container);
+                    break;
+            }
+        }
+
+        // Helper to render 'Back' button
+        function renderBackButton() {
+            return `
+                <button onclick="goBack()" class="inline-flex items-center text-xs font-semibold text-slate-500 hover:text-slate-800 mb-4 transition-colors">
+                    <i class="fa-solid fa-arrow-left mr-1.5"></i> 前の質問に戻る
+                </button>
+            `;
+        }
+
+        function handleStep1(choice) {
+            selections.step1 = choice;
+            if (choice === 'A' || choice === 'B') {
+                selections.resultType = 'COMMERCIAL';
+                selections.reason = choice === 'A' ? '営利企業（株式会社、合同会社等）としての利用' : '個人事業主・士業事務所（確定申告を行う活動）としての利用';
+                currentStep = 'RESULT';
+            } else if (choice === 'C') {
+                currentStep = 'STEP2';
+            } else if (choice === 'D') {
+                selections.resultType = 'NON_COMMERCIAL';
+                selections.reason = 'その他の非営利法人・公的機関（NPO、社会福祉法人、自治体等）としての利用';
+                currentStep = 'RESULT';
+            } else if (choice === 'E') {
+                currentStep = 'STEP4_1';
+            }
+            stepHistory.push(currentStep);
+            renderStep();
+        }
+
+        function handleStep2(choice) {
+            selections.step2 = choice;
+            if (choice === 'yes') {
+                currentStep = 'STEP3';
+            } else {
+                selections.resultType = 'COMMERCIAL';
+                selections.reason = '一般社団・財団法人で、税法上の非営利型に該当することが確認できないため';
+                currentStep = 'RESULT';
+            }
+            stepHistory.push(currentStep);
+            renderStep();
+        }
+
+        function handleStep3(choice) {
+            selections.step3 = choice;
+            if (choice === 'yes') {
+                selections.resultType = 'COMMERCIAL';
+                selections.reason = '一般社団・財団法人（非営利型）だが、今回の利用目的に営業・ビジネス行為が含まれるため';
+            } else {
+                selections.resultType = 'NON_COMMERCIAL';
+                selections.reason = '一般社団・財団法人（非営利型）であり、利用目的に営業・ビジネス行為が含まれないため';
+            }
+            currentStep = 'RESULT';
+            stepHistory.push(currentStep);
+            renderStep();
+        }
+
+        function handleStep4_1(choice) {
+            selections.step4_1 = choice;
+            if (choice === 'yes') {
+                selections.resultType = 'COMMERCIAL';
+                selections.reason = '講師・指導者本人（またはスクール関係者）が主体であり、ビジネス目的の販売やPR、講座・レッスン等に該当するため';
+                currentStep = 'RESULT';
+            } else {
+                currentStep = 'STEP4_2';
+            }
+            stepHistory.push(currentStep);
+            renderStep();
+        }
+
+        function handleStep4_2(choice) {
+            selections.step4_2 = choice;
+            if (choice === 'yes') {
+                selections.resultType = 'NON_COMMERCIAL';
+                selections.reason = '任意団体・市民サークル・個人による利用であり、経費精算用の領収書発行を必要としない利用のため';
+            } else {
+                selections.resultType = 'COMMERCIAL';
+                selections.reason = '任意団体・サークル・個人での利用ですが、事業用途・経費精算目的等の宛名付き領収書発行が必要なため';
+            }
+            currentStep = 'RESULT';
+            stepHistory.push(currentStep);
+            renderStep();
+        }
+
+        function goBack() {
+            if (stepHistory.length > 1) {
+                stepHistory.pop();
+                currentStep = stepHistory[stepHistory.length - 1];
+                renderStep();
+            }
+        }
+
+        function resetForm() {
+            currentStep = 'STEP1';
+            selections = {
+                step1: null,
+                step2: null,
+                step3: null,
+                step4_1: null,
+                step4_2: null,
+                resultType: null,
+                reason: null
+            };
+            stepHistory = ['STEP1'];
+            renderStep();
+        }
+
+        function renderResult(container) {
+            const isCommercial = selections.resultType === 'COMMERCIAL';
+
+            // Generate selection path text for display
+            let pathText = [];
+            if (selections.step1 === 'A') pathText.push('STEP1: 営利企業（A）を選択');
+            if (selections.step1 === 'B') pathText.push('STEP1: 個人事業主・士業事務所（B）を選択');
+            if (selections.step1 === 'C') {
+                pathText.push('STEP1: 一般社団法人・一般財団法人（C）を選択');
+                if (selections.step2 === 'yes') {
+                    pathText.push('STEP2: 税法上の非営利型（はい）');
+                    if (selections.step3 === 'yes') pathText.push('STEP3: 営業・ビジネス行為が含まれる（はい）');
+                    if (selections.step3 === 'no') pathText.push('STEP3: 営業・ビジネス行為が含まれない（いいえ）');
+                } else if (selections.step2 === 'no') {
+                    pathText.push('STEP2: 税法上の非営利型でない / 分からない（いいえ）');
+                }
+            }
+            if (selections.step1 === 'D') pathText.push('STEP1: その他の非営利法人・公的機関（D）を選択');
+            if (selections.step1 === 'E') {
+                pathText.push('STEP1: 任意団体・市民サークル・一般個人（E）を選択');
+                if (selections.step4_1 === 'yes') pathText.push('STEP4-1: 講師主体・ビジネス目的のレッスン等（はい）');
+                if (selections.step4_1 === 'no') {
+                    pathText.push('STEP4-1: 講師主体・ビジネス目的でない（いいえ）');
+                    if (selections.step4_2 === 'yes') pathText.push('STEP4-2: 利用明細書（レシート）発行でよい（はい）');
+                    if (selections.step4_2 === 'no') pathText.push('STEP4-2: 宛名付き領収書が必要（いいえ）');
+                }
+            }
+
+            container.innerHTML = `
+                <div class="text-center py-4">
+                    <span class="inline-block px-4 py-1.5 rounded-full text-xs font-extrabold uppercase tracking-widest ${isCommercial ? 'bg-red-100 text-red-700' : 'bg-emerald-100 text-emerald-700'} mb-3">
+                        判定結果
+                    </span>
+
+                    ${isCommercial ? `
+                        <div class="p-6 bg-red-50 border-2 border-red-500/80 rounded-2xl mb-6 shadow-sm">
+                            <div class="w-16 h-16 bg-red-600 text-white rounded-full flex items-center justify-center text-3xl mx-auto mb-3 shadow-md">
+                                <i class="fa-solid fa-briefcase"></i>
+                            </div>
+                            <h3 class="text-xs font-bold text-red-600 uppercase tracking-wider mb-1">区分・料金判定</h3>
+                            <div class="text-2xl sm:text-3xl font-black text-red-700">
+                                営利判定 <span class="text-lg sm:text-xl font-bold">（営利目的等 / 営利料金）</span>
+                            </div>
+                        </div>
+                    ` : `
+                        <div class="p-6 bg-emerald-50 border-2 border-emerald-500/80 rounded-2xl mb-6 shadow-sm">
+                            <div class="w-16 h-16 bg-emerald-600 text-white rounded-full flex items-center justify-center text-3xl mx-auto mb-3 shadow-md">
+                                <i class="fa-solid fa-hand-holding-heart"></i>
+                            </div>
+                            <h3 class="text-xs font-bold text-emerald-600 uppercase tracking-wider mb-1">区分・料金判定</h3>
+                            <div class="text-2xl sm:text-3xl font-black text-emerald-800">
+                                非営利判定 <span class="text-lg sm:text-xl font-bold">（営利目的等以外 / 非営利料金）</span>
+                            </div>
+                        </div>
+                    `}
+
+                    <!-- Reason & Logic Explanation -->
+                    <div class="text-left bg-slate-50 border border-slate-200 rounded-xl p-5 mb-6 space-y-3">
+                        <div class="font-bold text-slate-800 text-sm flex items-center">
+                            <i class="fa-solid fa-circle-check text-blue-600 mr-2"></i> 判定理由・根拠
+                        </div>
+                        <p class="text-sm text-slate-700 font-medium leading-relaxed bg-white p-3 rounded-lg border border-slate-200">
+                            ${selections.reason}
+                        </p>
+
+                        <div class="pt-2">
+                            <div class="text-xs font-semibold text-slate-500 mb-1.5">通過した回答フロー：</div>
+                            <div class="flex flex-wrap gap-1.5">
+                                ${pathText.map(step => `<span class="bg-slate-200 text-slate-700 text-xs px-2.5 py-1 rounded-md font-medium"><i class="fa-solid fa-angle-right text-slate-400 mr-1"></i>${step}</span>`).join('')}
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Action Buttons -->
+                    <div class="flex flex-col sm:flex-row gap-3 justify-center pt-2">
+                        <button onclick="resetForm()" class="px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-xl transition-all shadow-md hover:shadow-lg flex items-center justify-center gap-2">
+                            <i class="fa-solid fa-rotate-left"></i> もう一度最初から判定する
+                        </button>
+                        <button onclick="window.print()" class="px-6 py-3 bg-slate-200 hover:bg-slate-300 text-slate-700 font-bold rounded-xl transition-all flex items-center justify-center gap-2">
+                            <i class="fa-solid fa-print"></i> 判定結果を印刷・保存
+                        </button>
+                    </div>
+                </div>
+            `;
+        }
+
+        // Initialize on page load
+        window.onload = function() {
+            renderStep();
+        };
+    </script>
 </body>
 </html>
